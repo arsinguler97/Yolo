@@ -274,7 +274,7 @@ Canvas:
   m_OverrideSorting: 0
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
-  m_VertexColorAlwaysGammaSpace: 0
+  m_VertexColorAlwaysGammaSpace: 1
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
@@ -573,7 +573,7 @@ Transform:
   m_GameObject: {fileID: 1087679325}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.1, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -595,7 +595,6 @@ MonoBehaviour:
   safeTilePrefab: {fileID: 1252645828426947537, guid: 55f929ae0e956bb4dbd119cf30ed7b06, type: 3}
   dangerousTilePrefab: {fileID: 2620204994179776041, guid: 070ddd576ef2ada448cbcec9097a1fd2, type: 3}
   gameManager: {fileID: 1087679326}
-  spriteAnimator: {fileID: 1334987481}
   tileSpacing: 12
   initialDangerChance: 0.25
   maxDangerChance: 0.75
@@ -760,7 +759,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 10
   m_Sprite: {fileID: -937045750, guid: b27c269fd2812f04fb75191f88a9c4bd, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -785,6 +784,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spawner: {fileID: 1087679328}
+  animatorSimple: {fileID: 1334987481}
 --- !u!224 &1334987484
 RectTransform:
   m_ObjectHideFlags: 0
@@ -801,7 +801,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -540, y: -359.9}
+  m_AnchoredPosition: {x: -540, y: -360}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1344298189

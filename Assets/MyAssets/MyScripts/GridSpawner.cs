@@ -1,14 +1,8 @@
 using UnityEngine;
+using DG.Tweening;
 
 namespace MyAssets.MyScripts
 {
-    /// <summary>
-    /// Spawns safe/dangerous tiles around the player.
-    /// - Player stays centered.
-    /// - One tile in each direction.
-    /// - At least one safe tile guaranteed.
-    /// - Danger chance increases over time.
-    /// </summary>
     public class GridSpawner : MonoBehaviour
     {
         [Header("References")]
@@ -16,7 +10,6 @@ namespace MyAssets.MyScripts
         [SerializeField] private GameObject safeTilePrefab;
         [SerializeField] private GameObject dangerousTilePrefab;
         [SerializeField] private MyGameManager gameManager;
-        [SerializeField] private SpriteAnimatorSimple spriteAnimator;
 
         [Header("Grid Settings")]
         [SerializeField] private float tileSpacing = 2.5f;
@@ -46,9 +39,6 @@ namespace MyAssets.MyScripts
 
         public void MovePlayer(Vector3 direction)
         {
-            // 🔹 Directional sprite animation
-            spriteAnimator?.PlayMoveAnimation(direction);
-
             _elapsedTime += Time.deltaTime;
             CheckTileAtDirection(direction);
             SpawnTiles();
@@ -64,13 +54,11 @@ namespace MyAssets.MyScripts
                 var col = _hits[i];
                 if (col.CompareTag("DangerousTile"))
                 {
-                    Debug.Log("Stepped on DangerousTile!");
                     gameManager.OnDangerTile();
                     return;
                 }
                 else if (col.CompareTag("SafeTile"))
                 {
-                    Debug.Log("Stepped on SafeTile!");
                     gameManager.OnSafeTile();
                     return;
                 }
@@ -85,36 +73,33 @@ namespace MyAssets.MyScripts
 
             float tRatio = Mathf.Clamp01(_elapsedTime / gameDuration);
             float dangerChance = Mathf.Lerp(initialDangerChance, maxDangerChance, tRatio);
+            bool hasSafeTile = false;
 
-            // Always spawn a safe tile under the player
             Vector3 centerPos = player.position;
-            centerPos.y = 0.1f;
+            centerPos.y = 0f;
             _tiles[0] = Instantiate(safeTilePrefab, centerPos, Quaternion.identity);
             _tiles[0].tag = "SafeTile";
 
-            bool hasSafeTile = false;
-
-            // Spawn tiles in each direction
             for (int i = 0; i < _directions.Length; i++)
             {
                 bool isDangerous = Random.value < dangerChance;
                 GameObject prefab = isDangerous ? dangerousTilePrefab : safeTilePrefab;
+                if (!isDangerous) hasSafeTile = true;
 
-                if (!isDangerous)
-                    hasSafeTile = true;
+                Vector3 targetPos = player.position + _directions[i] * tileSpacing;
+                targetPos.y = 0f;
+                Vector3 startPos = targetPos + (-_directions[i]) * tileSpacing * 1.5f;
 
-                Vector3 pos = player.position + _directions[i] * tileSpacing;
-                pos.y = 0.1f;
-                _tiles[i + 1] = Instantiate(prefab, pos, Quaternion.identity);
+                _tiles[i + 1] = Instantiate(prefab, startPos, Quaternion.identity);
                 _tiles[i + 1].tag = isDangerous ? "DangerousTile" : "SafeTile";
+                _tiles[i + 1].transform.DOMove(targetPos, 0.35f).SetEase(Ease.OutCubic);
             }
 
-            // Guarantee at least one safe tile
             if (!hasSafeTile)
             {
                 int randomIndex = Random.Range(0, _directions.Length);
                 Vector3 pos = player.position + _directions[randomIndex] * tileSpacing;
-                pos.y = 0.1f;
+                pos.y = 0f;
 
                 if (_tiles[randomIndex + 1] != null)
                     Destroy(_tiles[randomIndex + 1]);
