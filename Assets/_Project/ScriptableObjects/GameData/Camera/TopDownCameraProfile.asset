@@ -20,6 +20,6 @@ MonoBehaviour:
   <IsOrthographic>k__BackingField: 1
   <OrthographicSize>k__BackingField: 20
   <PositionOffset>k__BackingField: {x: 0, y: 0, z: 0}
-  <FollowSmoothing>k__BackingField: 5.9
+  <FollowSmoothing>k__BackingField: 6
   <AllowRotation>k__BackingField: 0
-  <RotationSpeed>k__BackingField: 61.1
+  <RotationSpeed>k__BackingField: 60

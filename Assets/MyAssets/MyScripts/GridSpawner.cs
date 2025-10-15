@@ -3,11 +3,11 @@ using UnityEngine;
 namespace MyAssets.MyScripts
 {
     /// <summary>
-    /// Generates tiles (safe or dangerous) around the player.
-    /// - Player stays fixed at the center.
-    /// - Four tiles (up, down, left, right) spawn around the player.
-    /// - The chance of spawning a dangerous tile increases with time.
-    /// - At least one safe tile is always guaranteed.
+    /// Spawns safe/dangerous tiles around the player.
+    /// - Player stays centered.
+    /// - One tile in each direction.
+    /// - At least one safe tile guaranteed.
+    /// - Danger chance increases over time.
     /// </summary>
     public class GridSpawner : MonoBehaviour
     {
@@ -16,6 +16,7 @@ namespace MyAssets.MyScripts
         [SerializeField] private GameObject safeTilePrefab;
         [SerializeField] private GameObject dangerousTilePrefab;
         [SerializeField] private MyGameManager gameManager;
+        [SerializeField] private SpriteAnimatorSimple spriteAnimator;
 
         [Header("Grid Settings")]
         [SerializeField] private float tileSpacing = 2.5f;
@@ -24,7 +25,7 @@ namespace MyAssets.MyScripts
         [SerializeField] private float collisionRadius = 0.5f;
 
         [Header("Timer Settings")]
-        [SerializeField] private float gameDuration = 60f; // Duration in seconds
+        [SerializeField] private float gameDuration = 60f;
 
         private float _elapsedTime;
         private GameObject[] _tiles = new GameObject[5];
@@ -43,22 +44,16 @@ namespace MyAssets.MyScripts
             SpawnTiles();
         }
 
-        /// <summary>
-        /// Called from GridInputController when the player "moves".
-        /// Actually the player stays still; only tiles refresh.
-        /// </summary>
         public void MovePlayer(Vector3 direction)
         {
-            _elapsedTime += Time.deltaTime; // danger chance grows with time
-            player.rotation = Quaternion.LookRotation(direction);
+            // 🔹 Directional sprite animation
+            spriteAnimator?.PlayMoveAnimation(direction);
 
+            _elapsedTime += Time.deltaTime;
             CheckTileAtDirection(direction);
             SpawnTiles();
         }
 
-        /// <summary>
-        /// Checks what kind of tile exists in the movement direction.
-        /// </summary>
         private void CheckTileAtDirection(Vector3 direction)
         {
             Vector3 targetPos = player.position + direction * tileSpacing;
@@ -82,23 +77,16 @@ namespace MyAssets.MyScripts
             }
         }
 
-        /// <summary>
-        /// Spawns 5 tiles:
-        /// 1 center (always safe)
-        /// + 4 sides (at least one must be safe)
-        /// </summary>
         private void SpawnTiles()
         {
-            // Destroy previous tiles
             foreach (var t in _tiles)
                 if (t != null)
                     Destroy(t);
 
-            // Compute current danger chance (increases over time)
             float tRatio = Mathf.Clamp01(_elapsedTime / gameDuration);
             float dangerChance = Mathf.Lerp(initialDangerChance, maxDangerChance, tRatio);
 
-            // Always spawn safe tile under the player
+            // Always spawn a safe tile under the player
             Vector3 centerPos = player.position;
             centerPos.y = 0.1f;
             _tiles[0] = Instantiate(safeTilePrefab, centerPos, Quaternion.identity);
@@ -106,7 +94,7 @@ namespace MyAssets.MyScripts
 
             bool hasSafeTile = false;
 
-            // Spawn 4 directional tiles
+            // Spawn tiles in each direction
             for (int i = 0; i < _directions.Length; i++)
             {
                 bool isDangerous = Random.value < dangerChance;
@@ -121,7 +109,7 @@ namespace MyAssets.MyScripts
                 _tiles[i + 1].tag = isDangerous ? "DangerousTile" : "SafeTile";
             }
 
-            // Guarantee at least one safe tile around
+            // Guarantee at least one safe tile
             if (!hasSafeTile)
             {
                 int randomIndex = Random.Range(0, _directions.Length);
