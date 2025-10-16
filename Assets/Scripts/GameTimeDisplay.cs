@@ -1,41 +1,68 @@
 ﻿using _Project.Code.Core.Events;
-using _Project.Code.Core.ServiceLocator;
 using _Project.Code.Gameplay.GameManagement;
-using _Project.Code.Gameplay.Scenes;
+using MyAssets.MyScripts;
 using TMPro;
 using UnityEngine;
 
-namespace DefaultNamespace
+public class GameTimeDisplay : MonoBehaviour
 {
-    public class GameTimeDisplay : MonoBehaviour
-    {
-        private TMP_Text _timeText;
-        [SerializeField] private string _sceneToLoad = "[Game_Over]";
+    [SerializeField] private TMP_Text timeText;
+    [SerializeField] private GameObject playAgainButton;
+    [SerializeField] private TimerFadePanel fadePanel;
+    [SerializeField] private GridInputController gridInputController;
+    [SerializeField] private MyGameManager gameManager;
 
-        private void Start()
+    private GameTimerService _timerService;
+
+    private void Start()
+    {
+        if (timeText == null)
+            timeText = GetComponent<TMP_Text>();
+
+        _timerService = FindFirstObjectByType<GameTimerService>();
+        if (_timerService != null)
         {
-            _timeText = GetComponent<TMP_Text>();
-            EventBus.Instance.Subscribe<GameTimerTickEvent>(this, OnTimerTick);
-            EventBus.Instance.Subscribe<GameTimerFinishedEvent>(this, OnTimerFinished);
+            _timerService.ResetTimer();
+            _timerService.StartTimer();
         }
 
-        private void OnTimerTick(GameTimerTickEvent evt)
+        EventBus.Instance.Subscribe<GameTimerTickEvent>(this, OnTimerTick);
+        EventBus.Instance.Subscribe<GameTimerFinishedEvent>(this, OnTimerFinished);
+
+        if (playAgainButton != null)
+            playAgainButton.SetActive(false);
+    }
+
+    private void OnTimerTick(GameTimerTickEvent evt)
+    {
+        if (timeText != null)
+            timeText.text = evt.GetFormattedTime();
+    }
+
+    private void OnTimerFinished(GameTimerFinishedEvent evt)
+    {
+        if (fadePanel != null)
+            fadePanel.ForceFullAlpha();
+
+        if (playAgainButton != null)
+            playAgainButton.SetActive(true);
+
+        if (gameManager != null)
         {
-            if (_timeText != null)
+            var finalText = gameManager.GetComponentInChildren<TMP_Text>(true);
+            if (finalText != null)
             {
-                _timeText.text = evt.GetFormattedTime();
+                finalText.text = $"You've made it to {gameManager.Score}!";
+                finalText.gameObject.SetActive(true);
             }
         }
 
-        private void OnTimerFinished(GameTimerFinishedEvent evt)
-        {
-            ServiceLocator.Get<SceneService>().LoadScene(_sceneToLoad);
-        }
-        
+        gridInputController.DisableInput();
+    }
 
-        private void OnDestroy()
-        {
-            EventBus.Instance.Unsubscribe<GameTimerTickEvent>(this);
-        }
+    private void OnDestroy()
+    {
+        EventBus.Instance.Unsubscribe<GameTimerTickEvent>(this);
+        EventBus.Instance.Unsubscribe<GameTimerFinishedEvent>(this);
     }
 }

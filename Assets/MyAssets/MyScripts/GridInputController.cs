@@ -12,6 +12,9 @@ namespace MyAssets.MyScripts
     {
         [SerializeField] private GridSpawner spawner;
         [SerializeField] private SpriteAnimatorSimple animatorSimple;
+        [SerializeField] private ArrowPulseUI arrowPulseUI;
+        
+        private bool _canMove = true;
 
         private void OnEnable()
         {
@@ -25,28 +28,44 @@ namespace MyAssets.MyScripts
 
         private void OnMoveInput(MoveInputEvent evt)
         {
+            if (!_canMove) return;
+            
             Vector2 input = evt.Input;
 
             if (input.y > 0.5f)
             {
                 animatorSimple.PlayMoveAnimation(Vector3.forward);
+                arrowPulseUI.Pulse(Vector3.forward);
                 spawner.MovePlayer(Vector3.forward);
             }
             else if (input.y < -0.5f)
             {
                 animatorSimple.PlayMoveAnimation(Vector3.back);
+                arrowPulseUI.Pulse(Vector3.back);
                 spawner.MovePlayer(Vector3.back);
             }
             else if (input.x < -0.5f)
             {
                 animatorSimple.PlayMoveAnimation(Vector3.left);
+                arrowPulseUI.Pulse(Vector3.left);
                 spawner.MovePlayer(Vector3.left);
             }
             else if (input.x > 0.5f)
             {
                 animatorSimple.PlayMoveAnimation(Vector3.right);
+                arrowPulseUI.Pulse(Vector3.right);
                 spawner.MovePlayer(Vector3.right);
             }
+        }
+
+        public void EnableInput()
+        {
+            _canMove = true;
+        }
+        
+        public void DisableInput()
+        {
+            _canMove = false;
         }
     }
 }
