@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 using DG.Tweening;
 
 namespace MyAssets.MyScripts
@@ -17,19 +18,18 @@ namespace MyAssets.MyScripts
         [SerializeField] private int gridSize = 7;
         [SerializeField] private float tileSpacing = 2.5f;
         [SerializeField] private float dangerousTileChance = 0.25f;
+        [SerializeField] private float moveCooldown = 0.35f;
 
         private int _radius;
         private Vector2Int _playerPos;
-        private GameObject[,] _tiles;
-        private Vector3 _origin;
+        private Dictionary<Vector2Int, GameObject> _tiles = new();
+        private bool _canMove = true;
 
         private void Start()
         {
             if (gridSize % 2 == 0) gridSize++;
             _radius = gridSize / 2;
             _playerPos = Vector2Int.zero;
-            _tiles = new GameObject[gridSize * 10, gridSize * 10];
-            _origin = transform.position;
 
             SpawnInitialTiles();
             SpawnOuterRingIfMissing();
@@ -38,6 +38,10 @@ namespace MyAssets.MyScripts
 
         public void MovePlayer(Vector3 dir)
         {
+            if (!_canMove) return; // anti-spam
+            _canMove = false;
+            Invoke(nameof(ResetMove), moveCooldown);
+
             Vector2Int moveDir = Vector2Int.zero;
             if (dir == Vector3.forward) moveDir = Vector2Int.up;
             else if (dir == Vector3.back) moveDir = Vector2Int.down;
@@ -46,8 +50,7 @@ namespace MyAssets.MyScripts
             if (moveDir == Vector2Int.zero) return;
 
             Vector2Int target = _playerPos + moveDir;
-            GameObject targetTile = GetTile(target);
-            if (targetTile == null) return;
+            if (!_tiles.TryGetValue(target, out var targetTile)) return;
 
             if (targetTile.CompareTag("UnmovableTile")) return;
 
@@ -64,7 +67,6 @@ namespace MyAssets.MyScripts
             _playerPos = target;
 
             Vector3 shift = new Vector3(-moveDir.x * tileSpacing, 0f, -moveDir.y * tileSpacing);
-            
             foreach (Transform child in transform)
             {
                 Vector3 targetPos = child.position + shift;
@@ -73,6 +75,11 @@ namespace MyAssets.MyScripts
 
             SpawnOuterRingIfMissing();
             Reveal4Neighbours();
+        }
+
+        private void ResetMove()
+        {
+            _canMove = true;
         }
 
         private void SpawnInitialTiles()
@@ -116,8 +123,7 @@ namespace MyAssets.MyScripts
             foreach (var d in dirs)
             {
                 Vector2Int p = _playerPos + d;
-                GameObject t = GetTile(p);
-                if (t == null) continue;
+                if (!_tiles.TryGetValue(p, out var t)) continue;
                 if (t.CompareTag("UnrevealedTile"))
                 {
                     lastUnrevealed = p;
@@ -133,7 +139,6 @@ namespace MyAssets.MyScripts
             if (!safeSpawned && lastUnrevealed != Vector2Int.zero)
             {
                 ReplaceTile(lastUnrevealed, safeTilePrefab, "SafeTile");
-                Debug.Log("[Safety Adjust] Forced one Safe tile at " + lastUnrevealed);
             }
         }
 
@@ -142,49 +147,28 @@ namespace MyAssets.MyScripts
             ReplaceTile(p, unmovableTilePrefab, "UnmovableTile");
         }
 
-        private void SpawnIfMissing(Vector2Int p, GameObject prefab, string tileTag)
+        private void SpawnIfMissing(Vector2Int p, GameObject prefab, string tileType)
         {
-            if (GetTile(p) != null) return;
-            Vector3 wp = GridToWorld(p);
-            GameObject go = Instantiate(prefab, wp, Quaternion.identity, transform);
-            go.tag = tileTag;
-            SetTile(p, go);
+            if (_tiles.ContainsKey(p)) return;
+            var go = Instantiate(prefab, GridToWorld(p), Quaternion.identity, transform);
+            go.tag = tileType;
+            _tiles[p] = go;
         }
 
-        private void ReplaceTile(Vector2Int p, GameObject prefab, string tileTag)
+        private void ReplaceTile(Vector2Int p, GameObject prefab, string tileType)
         {
-            GameObject old = GetTile(p);
-            if (old != null) Destroy(old);
-            Vector3 wp = GridToWorld(p);
-            GameObject go = Instantiate(prefab, wp, Quaternion.identity, transform);
-            go.tag = tileTag;
-            SetTile(p, go);
+            if (_tiles.TryGetValue(p, out var old)) Destroy(old);
+            var go = Instantiate(prefab, GridToWorld(p), Quaternion.identity, transform);
+            go.tag = tileType;
+            _tiles[p] = go;
         }
 
         private Vector3 GridToWorld(Vector2Int gp)
         {
-            Vector2Int rel = gp - _playerPos;
-            return _origin + new Vector3(rel.x * tileSpacing, 0f, rel.y * tileSpacing);
-        }
-
-        private GameObject GetTile(Vector2Int gp)
-        {
-            int w = _tiles.GetLength(0);
-            int h = _tiles.GetLength(1);
-            int ix = gp.x + w / 2;
-            int iy = gp.y + h / 2;
-            if (ix < 0 || iy < 0 || ix >= w || iy >= h) return null;
-            return _tiles[ix, iy];
-        }
-
-        private void SetTile(Vector2Int gp, GameObject go)
-        {
-            int w = _tiles.GetLength(0);
-            int h = _tiles.GetLength(1);
-            int ix = gp.x + w / 2;
-            int iy = gp.y + h / 2;
-            if (ix < 0 || iy < 0 || ix >= w || iy >= h) return;
-            _tiles[ix, iy] = go;
+            return transform.position + new Vector3(
+                (gp.x - _playerPos.x) * tileSpacing,
+                0f,
+                (gp.y - _playerPos.y) * tileSpacing);
         }
     }
 }

@@ -37,24 +37,28 @@ namespace MyAssets.MyScripts
                 animatorSimple.PlayMoveAnimation(Vector3.forward);
                 arrowPulseUI.Pulse(Vector3.forward);
                 spawner.MovePlayer(Vector3.forward);
+                AudioManager.Instance?.PlayRandomMoveSound();
             }
             else if (input.y < -0.5f)
             {
                 animatorSimple.PlayMoveAnimation(Vector3.back);
                 arrowPulseUI.Pulse(Vector3.back);
                 spawner.MovePlayer(Vector3.back);
+                AudioManager.Instance?.PlayRandomMoveSound();
             }
             else if (input.x < -0.5f)
             {
                 animatorSimple.PlayMoveAnimation(Vector3.left);
                 arrowPulseUI.Pulse(Vector3.left);
                 spawner.MovePlayer(Vector3.left);
+                AudioManager.Instance?.PlayRandomMoveSound();
             }
             else if (input.x > 0.5f)
             {
                 animatorSimple.PlayMoveAnimation(Vector3.right);
                 arrowPulseUI.Pulse(Vector3.right);
                 spawner.MovePlayer(Vector3.right);
+                AudioManager.Instance?.PlayRandomMoveSound();
             }
         }
 

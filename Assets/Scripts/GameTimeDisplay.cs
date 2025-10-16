@@ -37,6 +37,10 @@ public class GameTimeDisplay : MonoBehaviour
     {
         if (timeText != null)
             timeText.text = evt.GetFormattedTime();
+
+        var audio = FindFirstObjectByType<AudioManager>();
+        if (audio != null && !audio.IsTimerTickingPlaying())
+            audio.PlayTimerTick();
     }
 
     private void OnTimerFinished(GameTimerFinishedEvent evt)
@@ -47,17 +51,25 @@ public class GameTimeDisplay : MonoBehaviour
         if (playAgainButton != null)
             playAgainButton.SetActive(true);
 
+        var audio = FindFirstObjectByType<AudioManager>();
+        if (audio != null)
+        {
+            audio.StopTimerTick();
+            audio.PlayGameOver();
+        }
+
         if (gameManager != null)
         {
-            var finalText = gameManager.GetComponentInChildren<TMP_Text>(true);
+            var finalText = gameManager.GetComponentInChildren<TextMeshProUGUI>(true);
             if (finalText != null)
             {
-                finalText.text = $"You've made it to {gameManager.Score}!";
+                finalText.text = $"You died as a {gameManager.Score}-year-old {gameManager.CurrentStage.ToLower()} :(";
                 finalText.gameObject.SetActive(true);
             }
         }
 
-        gridInputController.DisableInput();
+        if (gridInputController != null)
+            gridInputController.DisableInput();
     }
 
     private void OnDestroy()
