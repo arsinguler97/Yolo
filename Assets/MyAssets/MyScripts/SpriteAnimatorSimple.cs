@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using DG.Tweening;
 
 namespace MyAssets.MyScripts
 {
@@ -27,6 +28,13 @@ namespace MyAssets.MyScripts
 
         public void PlayMoveAnimation(Vector3 dir)
         {
+            transform.DOKill();
+            Vector3 baseScale = transform.localScale;
+            Vector3 bigger = baseScale * 1.15f;
+
+            transform.DOScale(bigger, 0.1f).SetEase(Ease.OutQuad)
+                .OnComplete(() => transform.DOScale(baseScale, 0.1f).SetEase(Ease.InQuad));
+            
             if (_walkRoutine != null)
                 StopCoroutine(_walkRoutine);
 
@@ -39,7 +47,7 @@ namespace MyAssets.MyScripts
             else if (dir == Vector3.right)
                 _walkRoutine = StartCoroutine(PlayWalk(walkRight, idleRight, "Right"));
             else
-                SetIdleSprite(); // fallback
+                SetIdleSprite();
         }
 
         private IEnumerator PlayWalk(Sprite[] frames, Sprite idleSprite, string dir)

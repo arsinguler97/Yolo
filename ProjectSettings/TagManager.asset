@@ -6,7 +6,8 @@ TagManager:
   tags:
   - DangerousTile
   - SafeTile
-  - DangerousGrid
+  - UnmovableTile
+  - UnrevealedTile
   layers:
   - Default
   - TransparentFX

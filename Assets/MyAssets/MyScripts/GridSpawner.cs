@@ -7,106 +7,184 @@ namespace MyAssets.MyScripts
     {
         [Header("References")]
         [SerializeField] private Transform player;
+        [SerializeField] private GameObject unrevealedTilePrefab;
         [SerializeField] private GameObject safeTilePrefab;
         [SerializeField] private GameObject dangerousTilePrefab;
+        [SerializeField] private GameObject unmovableTilePrefab;
         [SerializeField] private MyGameManager gameManager;
 
-        [Header("Grid Settings")]
+        [Header("Settings")]
+        [SerializeField] private int gridSize = 7;
         [SerializeField] private float tileSpacing = 2.5f;
-        [SerializeField] private float initialDangerChance = 0.25f;
-        [SerializeField] private float maxDangerChance = 0.75f;
-        [SerializeField] private float collisionRadius = 0.5f;
+        [SerializeField] private float dangerousTileChance = 0.25f;
 
-        [Header("Timer Settings")]
-        [SerializeField] private float gameDuration = 60f;
-
-        private float _elapsedTime;
-        private GameObject[] _tiles = new GameObject[5];
-        private Collider[] _hits = new Collider[10];
-
-        private readonly Vector3[] _directions =
-        {
-            Vector3.forward,
-            Vector3.back,
-            Vector3.left,
-            Vector3.right
-        };
+        private int _radius;
+        private Vector2Int _playerPos;
+        private GameObject[,] _tiles;
+        private Vector3 _origin;
 
         private void Start()
         {
-            SpawnTiles();
+            if (gridSize % 2 == 0) gridSize++;
+            _radius = gridSize / 2;
+            _playerPos = Vector2Int.zero;
+            _tiles = new GameObject[gridSize * 10, gridSize * 10];
+            _origin = transform.position;
+
+            SpawnInitialTiles();
+            SpawnOuterRingIfMissing();
+            Reveal4Neighbours();
         }
 
-        public void MovePlayer(Vector3 direction)
+        public void MovePlayer(Vector3 dir)
         {
-            _elapsedTime += Time.deltaTime;
-            CheckTileAtDirection(direction);
-            SpawnTiles();
-        }
+            Vector2Int moveDir = Vector2Int.zero;
+            if (dir == Vector3.forward) moveDir = Vector2Int.up;
+            else if (dir == Vector3.back) moveDir = Vector2Int.down;
+            else if (dir == Vector3.left) moveDir = Vector2Int.left;
+            else if (dir == Vector3.right) moveDir = Vector2Int.right;
+            if (moveDir == Vector2Int.zero) return;
 
-        private void CheckTileAtDirection(Vector3 direction)
-        {
-            Vector3 targetPos = player.position + direction * tileSpacing;
-            int hitCount = Physics.OverlapSphereNonAlloc(targetPos, collisionRadius, _hits);
+            Vector2Int target = _playerPos + moveDir;
+            GameObject targetTile = GetTile(target);
+            if (targetTile == null) return;
 
-            for (int i = 0; i < hitCount; i++)
+            if (targetTile.CompareTag("UnmovableTile")) return;
+
+            if (targetTile.CompareTag("DangerousTile"))
             {
-                var col = _hits[i];
-                if (col.CompareTag("DangerousTile"))
+                gameManager.OnDangerTile();
+                return;
+            }
+
+            if (targetTile.CompareTag("SafeTile"))
+                gameManager.OnSafeTile();
+
+            ConvertToUnmovable(_playerPos);
+            _playerPos = target;
+
+            Vector3 shift = new Vector3(-moveDir.x * tileSpacing, 0f, -moveDir.y * tileSpacing);
+            
+            foreach (Transform child in transform)
+            {
+                Vector3 targetPos = child.position + shift;
+                child.DOMove(targetPos, 0.3f).SetEase(Ease.InOutSine);
+            }
+
+            SpawnOuterRingIfMissing();
+            Reveal4Neighbours();
+        }
+
+        private void SpawnInitialTiles()
+        {
+            for (int dx = -_radius; dx <= _radius; dx++)
+            {
+                for (int dy = -_radius; dy <= _radius; dy++)
                 {
-                    gameManager.OnDangerTile();
-                    return;
+                    Vector2Int g = _playerPos + new Vector2Int(dx, dy);
+                    SpawnIfMissing(g, unrevealedTilePrefab, "UnrevealedTile");
                 }
-                else if (col.CompareTag("SafeTile"))
-                {
-                    gameManager.OnSafeTile();
-                    return;
-                }
+            }
+            ReplaceTile(_playerPos, safeTilePrefab, "SafeTile");
+        }
+
+        private void SpawnOuterRingIfMissing()
+        {
+            int left = _playerPos.x - _radius;
+            int right = _playerPos.x + _radius;
+            int down = _playerPos.y - _radius;
+            int up = _playerPos.y + _radius;
+
+            for (int x = left; x <= right; x++)
+            {
+                SpawnIfMissing(new Vector2Int(x, up), unrevealedTilePrefab, "UnrevealedTile");
+                SpawnIfMissing(new Vector2Int(x, down), unrevealedTilePrefab, "UnrevealedTile");
+            }
+            for (int y = down + 1; y <= up - 1; y++)
+            {
+                SpawnIfMissing(new Vector2Int(left, y), unrevealedTilePrefab, "UnrevealedTile");
+                SpawnIfMissing(new Vector2Int(right, y), unrevealedTilePrefab, "UnrevealedTile");
             }
         }
 
-        private void SpawnTiles()
+        private void Reveal4Neighbours()
         {
-            foreach (var t in _tiles)
-                if (t != null)
-                    Destroy(t);
+            Vector2Int[] dirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+            bool safeSpawned = false;
+            Vector2Int lastUnrevealed = Vector2Int.zero;
 
-            float tRatio = Mathf.Clamp01(_elapsedTime / gameDuration);
-            float dangerChance = Mathf.Lerp(initialDangerChance, maxDangerChance, tRatio);
-            bool hasSafeTile = false;
-
-            Vector3 centerPos = player.position;
-            centerPos.y = 0f;
-            _tiles[0] = Instantiate(safeTilePrefab, centerPos, Quaternion.identity);
-            _tiles[0].tag = "SafeTile";
-
-            for (int i = 0; i < _directions.Length; i++)
+            foreach (var d in dirs)
             {
-                bool isDangerous = Random.value < dangerChance;
-                GameObject prefab = isDangerous ? dangerousTilePrefab : safeTilePrefab;
-                if (!isDangerous) hasSafeTile = true;
+                Vector2Int p = _playerPos + d;
+                GameObject t = GetTile(p);
+                if (t == null) continue;
+                if (t.CompareTag("UnrevealedTile"))
+                {
+                    lastUnrevealed = p;
+                    bool danger = Random.value < dangerousTileChance;
+                    if (!danger) safeSpawned = true;
 
-                Vector3 targetPos = player.position + _directions[i] * tileSpacing;
-                targetPos.y = 0f;
-                Vector3 startPos = targetPos + (-_directions[i]) * tileSpacing * 1.5f;
-
-                _tiles[i + 1] = Instantiate(prefab, startPos, Quaternion.identity);
-                _tiles[i + 1].tag = isDangerous ? "DangerousTile" : "SafeTile";
-                _tiles[i + 1].transform.DOMove(targetPos, 0.35f).SetEase(Ease.OutCubic);
+                    ReplaceTile(p,
+                        danger ? dangerousTilePrefab : safeTilePrefab,
+                        danger ? "DangerousTile" : "SafeTile");
+                }
             }
 
-            if (!hasSafeTile)
+            if (!safeSpawned && lastUnrevealed != Vector2Int.zero)
             {
-                int randomIndex = Random.Range(0, _directions.Length);
-                Vector3 pos = player.position + _directions[randomIndex] * tileSpacing;
-                pos.y = 0f;
-
-                if (_tiles[randomIndex + 1] != null)
-                    Destroy(_tiles[randomIndex + 1]);
-
-                _tiles[randomIndex + 1] = Instantiate(safeTilePrefab, pos, Quaternion.identity);
-                _tiles[randomIndex + 1].tag = "SafeTile";
+                ReplaceTile(lastUnrevealed, safeTilePrefab, "SafeTile");
+                Debug.Log("[Safety Adjust] Forced one Safe tile at " + lastUnrevealed);
             }
+        }
+
+        private void ConvertToUnmovable(Vector2Int p)
+        {
+            ReplaceTile(p, unmovableTilePrefab, "UnmovableTile");
+        }
+
+        private void SpawnIfMissing(Vector2Int p, GameObject prefab, string tileTag)
+        {
+            if (GetTile(p) != null) return;
+            Vector3 wp = GridToWorld(p);
+            GameObject go = Instantiate(prefab, wp, Quaternion.identity, transform);
+            go.tag = tileTag;
+            SetTile(p, go);
+        }
+
+        private void ReplaceTile(Vector2Int p, GameObject prefab, string tileTag)
+        {
+            GameObject old = GetTile(p);
+            if (old != null) Destroy(old);
+            Vector3 wp = GridToWorld(p);
+            GameObject go = Instantiate(prefab, wp, Quaternion.identity, transform);
+            go.tag = tileTag;
+            SetTile(p, go);
+        }
+
+        private Vector3 GridToWorld(Vector2Int gp)
+        {
+            Vector2Int rel = gp - _playerPos;
+            return _origin + new Vector3(rel.x * tileSpacing, 0f, rel.y * tileSpacing);
+        }
+
+        private GameObject GetTile(Vector2Int gp)
+        {
+            int w = _tiles.GetLength(0);
+            int h = _tiles.GetLength(1);
+            int ix = gp.x + w / 2;
+            int iy = gp.y + h / 2;
+            if (ix < 0 || iy < 0 || ix >= w || iy >= h) return null;
+            return _tiles[ix, iy];
+        }
+
+        private void SetTile(Vector2Int gp, GameObject go)
+        {
+            int w = _tiles.GetLength(0);
+            int h = _tiles.GetLength(1);
+            int ix = gp.x + w / 2;
+            int iy = gp.y + h / 2;
+            if (ix < 0 || iy < 0 || ix >= w || iy >= h) return;
+            _tiles[ix, iy] = go;
         }
     }
 }
